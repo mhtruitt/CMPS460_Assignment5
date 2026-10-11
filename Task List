@@ -1,0 +1,34 @@
+// components/TaskList.tsx
+//
+// REQUIREMENT 4: Display tasks
+//
+// Renders the full list of tasks using FlatList. Also contains the
+// CONDITIONAL RENDERING for requirement 6: if there are no tasks, it
+// renders EmptyState instead of an empty FlatList.
+
+import React from 'react';
+import { FlatList } from 'react-native';
+import { Task } from '../types/Task';
+import TaskItem from './TaskItem';
+import EmptyState from './EmptyState';
+
+type TaskListProps = {
+  tasks: Task[];
+  onDeleteTask: (id: string) => void;
+};
+
+export default function TaskList({ tasks, onDeleteTask }: TaskListProps) {
+  // CONDITIONAL RENDERING: empty list vs. populated list
+  if (tasks.length === 0) {
+    return <EmptyState />;
+  }
+
+  return (
+    <FlatList
+      data={tasks}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => <TaskItem task={item} onDelete={onDeleteTask} />}
+      showsVerticalScrollIndicator={false}
+    />
+  );
+}
