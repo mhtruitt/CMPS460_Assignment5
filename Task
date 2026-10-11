@@ -1,0 +1,12 @@
+// types/Task.ts
+//
+// REQUIREMENT 1: Create the task interface
+// Defines the shape of a single task used throughout the app. Keeping
+// this in its own file means every component (TaskInput, TaskItem,
+// TaskList, App) can import and rely on the same shape.
+
+export interface Task {
+  id: string; // unique identifier (generated when the task is added)
+  title: string; // the text the user typed in
+  createdAt: number; // timestamp (ms since epoch), used to sort/display
+}
