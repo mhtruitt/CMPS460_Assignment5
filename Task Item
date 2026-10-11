@@ -1,0 +1,66 @@
+// components/TaskItem.tsx
+//
+// REQUIREMENT 5: Delete tasks (the button lives here; the actual
+// removal logic lives in App.tsx and is passed down via props)
+//
+// A purely presentational component: it receives a single task and an
+// onDelete callback via props, and doesn't manage any state of its own.
+
+import React from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Task } from '../types/Task';
+
+type TaskItemProps = {
+  task: Task;
+  onDelete: (id: string) => void;
+};
+
+export default function TaskItem({ task, onDelete }: TaskItemProps) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.title}>{task.title}</Text>
+      <Pressable
+        style={styles.deleteButton}
+        onPress={() => onDelete(task.id)}
+        hitSlop={8}
+      >
+        <Text style={styles.deleteButtonText}>Delete</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  title: {
+    fontSize: 15,
+    color: '#1B1F3B',
+    flexShrink: 1,
+    marginRight: 12,
+  },
+  deleteButton: {
+    backgroundColor: '#FBEAEA',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  deleteButtonText: {
+    color: '#C0392B',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+});
