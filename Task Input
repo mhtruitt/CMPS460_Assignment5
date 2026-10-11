@@ -1,0 +1,75 @@
+// components/TaskInput.tsx
+//
+// REQUIREMENT 3: Add a task
+//
+// A functional component that owns only the text currently being
+// typed. It doesn't know about the full task list — it just reports
+// the finished title up to its parent via the onAddTask prop
+// (a common pattern: state lives in the parent, children call back up).
+
+import React, { useState } from 'react';
+import { View, TextInput, Pressable, Text, StyleSheet } from 'react-native';
+
+type TaskInputProps = {
+  onAddTask: (title: string) => void;
+};
+
+export default function TaskInput({ onAddTask }: TaskInputProps) {
+  // Local state: just the text currently in the input box.
+  const [title, setTitle] = useState('');
+
+  const handleAdd = () => {
+    const trimmed = title.trim();
+    if (trimmed.length === 0) {
+      return; // ignore empty/whitespace-only submissions
+    }
+    onAddTask(trimmed);
+    setTitle(''); // clear the input after adding
+  };
+
+  return (
+    <View style={styles.row}>
+      <TextInput
+        style={styles.input}
+        placeholder="Add a new task..."
+        value={title}
+        onChangeText={setTitle}
+        onSubmitEditing={handleAdd}
+        returnKeyType="done"
+      />
+      <Pressable style={styles.addButton} onPress={handleAdd}>
+        <Text style={styles.addButtonText}>Add</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#DADCE6',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    backgroundColor: '#FAFAFE',
+    marginRight: 10,
+  },
+  addButton: {
+    backgroundColor: '#4A55A2',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+  },
+  addButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+});
