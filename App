@@ -1,0 +1,123 @@
+// App.tsx
+//
+// Main screen. Owns the task state and wires together all the pieces:
+// TaskInput (add), TaskList (display + delete), and the AsyncStorage
+// load/save effects.
+
+import React, { useState, useEffect } from 'react';
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
+import { Task } from './types/Task';
+import { saveTasks, loadTasks } from './utils/taskStorage';
+import TaskInput from './components/TaskInput';
+import TaskList from './components/TaskList';
+
+export default function App() {
+  // REQUIREMENT 2: Create the task state
+  // The single source of truth for every task currently in the app.
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  // Tracks whether the initial load from storage has finished, so we
+  // don't briefly flash the "No tasks yet" empty state before the
+  // saved tasks have had a chance to load in.
+  const [isLoading, setIsLoading] = useState(true);
+
+  // REQUIREMENT 8: Load tasks
+  // Runs once when the app first mounts, pulling any previously saved
+  // tasks out of AsyncStorage and into state.
+  useEffect(() => {
+    (async () => {
+      const storedTasks = await loadTasks();
+      setTasks(storedTasks);
+      setIsLoading(false);
+    })();
+  }, []);
+
+  // REQUIREMENT 7: Save tasks
+  // Runs every time the task list changes, persisting the latest
+  // version to AsyncStorage. Skipped during the initial load so we
+  // don't immediately re-save the exact data we just loaded.
+  useEffect(() => {
+    if (!isLoading) {
+      saveTasks(tasks);
+    }
+  }, [tasks, isLoading]);
+
+  // REQUIREMENT 3: Add a task
+  // Builds a new Task object and appends it to state. Using the
+  // functional form of setTasks (prev => ...) guarantees we're always
+  // updating from the latest state, even if calls happen in quick
+  // succession.
+  const handleAddTask = (title: string) => {
+    const newTask: Task = {
+      id: Date.now().toString(), // simple unique id based on timestamp
+      title,
+      createdAt: Date.now(),
+    };
+    setTasks((prev) => [newTask, ...prev]);
+  };
+
+  // REQUIREMENT 5: Delete tasks
+  // Filters the deleted task out of state by id.
+  const handleDeleteTask = (id: string) => {
+    setTasks((prev) => prev.filter((task) => task.id !== id));
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          <Text style={styles.header}>My Tasks</Text>
+
+          <TaskInput onAddTask={handleAddTask} />
+
+          {/* Conditional rendering: show a spinner while the initial
+              load from storage is still in progress. */}
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#4A55A2" />
+            </View>
+          ) : (
+            // REQUIREMENT 4 (display) + REQUIREMENT 6 (empty state)
+            // both live inside TaskList.
+            <TaskList tasks={tasks} onDeleteTask={handleDeleteTask} />
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F5F6FA',
+  },
+  flex: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  header: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#1B1F3B',
+    marginBottom: 20,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+});
