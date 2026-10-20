@@ -1,0 +1,54 @@
+// utils/taskStorage.ts
+//
+// REQUIREMENT 7: Save tasks
+// REQUIREMENT 8: Load tasks
+//
+// Wraps AsyncStorage so the rest of the app never touches the storage
+// API directly — it just calls saveTasks()/loadTasks(). Tasks are
+// serialized to a JSON string, since AsyncStorage only stores strings.
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Task } from '../types/Task';
+
+const STORAGE_KEY = '@task_manager_tasks';
+
+// Persists the full task list. Called any time the list changes
+// (after adding or deleting a task).
+export async function saveTasks(tasks: Task[]): Promise<void> {
+  try {
+    const json = JSON.stringify(tasks);
+    await AsyncStorage.setItem(STORAGE_KEY, json);
+  } catch (error) {
+    console.error('Failed to save tasks:', error);
+  }
+}
+
+// Reads the task list back out of storage. Returns an empty array if
+// nothing has been saved yet (e.g. first app launch) or if something
+// goes wrong reading/parsing the data.
+export async function loadTasks(): Promise<Task[]> {
+  try {
+    const json = await AsyncStorage.getItem(STORAGE_KEY);
+    return json != null ? (JSON.parse(json) as Task[]) : [];
+  } catch (error) {
+    console.error('Failed to load tasks:', error);
+    return [];
+  }
+}
+
+// Adds a single task to the saved list. Used by the Suggested Tasks
+// screen, which doesn't own the main task state: it reads the stored
+// list, prepends the new task, and writes it back. The Tasks screen
+// reloads from storage whenever it regains focus, so the new task
+// appears there automatically.
+export async function addTaskToStorage(title: string): Promise<void> {
+  const existing = await loadTasks();
+  const newTask: Task = {
+    // Date.now() plus a random suffix avoids duplicate ids if two
+    // tasks are added within the same millisecond.
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    title,
+    createdAt: Date.now(),
+  };
+  await saveTasks([newTask, ...existing]);
+}
