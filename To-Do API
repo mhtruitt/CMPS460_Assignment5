@@ -1,0 +1,28 @@
+// services/todoApi.ts
+//
+// REQUIREMENT 1 + 2: API selection and data retrieval.
+//
+// API:       JSONPlaceholder (free, public, no API key)
+// Endpoint:  GET https://jsonplaceholder.typicode.com/todos?_limit=20
+// Returns:   a JSON array of { userId, id, title, completed } objects
+//
+// The `_limit` query parameter caps the response at 20 records so the
+// list stays small and fast to load.
+
+import { ApiTodo } from '../types/ApiTodo';
+
+export const TODOS_URL = 'https://jsonplaceholder.typicode.com/todos?_limit=20';
+
+export async function fetchSuggestedTodos(): Promise<ApiTodo[]> {
+  // fetch() only rejects on network failure (offline, DNS, timeout).
+  // A 404 or 500 still "succeeds", so we must check response.ok
+  // ourselves and throw to route HTTP errors into the same catch block.
+  const response = await fetch(TODOS_URL);
+
+  if (!response.ok) {
+    throw new Error(`Server responded with status ${response.status}`);
+  }
+
+  const data: ApiTodo[] = await response.json();
+  return data;
+}
