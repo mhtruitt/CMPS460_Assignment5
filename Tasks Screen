@@ -1,0 +1,124 @@
+// screens/TasksScreen.tsx
+//
+// The original Task Manager screen (previously App.tsx), moved into a
+// screen component so the app can navigate to the Suggested Tasks
+// screen. Task state, add, delete, save, and load work as before.
+
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  SafeAreaView,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Task } from '../types/Task';
+import { RootStackParamList } from '../types/navigation';
+import { saveTasks, loadTasks } from '../utils/taskStorage';
+import TaskInput from '../components/TaskInput';
+import TaskList from '../components/TaskList';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Tasks'>;
+
+export default function TasksScreen({ navigation }: Props) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load tasks from storage every time this screen gains focus (not
+  // just on first mount). That way a task added from the Suggested
+  // Tasks screen shows up as soon as the user navigates back.
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      (async () => {
+        const storedTasks = await loadTasks();
+        if (isActive) {
+          setTasks(storedTasks);
+          setIsLoading(false);
+        }
+      })();
+      // Cleanup: ignore the result if the screen lost focus first.
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
+
+  // Save whenever the list changes, but not before the first load.
+  useEffect(() => {
+    if (!isLoading) {
+      saveTasks(tasks);
+    }
+  }, [tasks, isLoading]);
+
+  const handleAddTask = (title: string) => {
+    const newTask: Task = {
+      id: Date.now().toString(),
+      title,
+      createdAt: Date.now(),
+    };
+    setTasks((prev) => [newTask, ...prev]);
+  };
+
+  const handleDeleteTask = (id: string) => {
+    setTasks((prev) => prev.filter((task) => task.id !== id));
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          <View style={styles.headerRow}>
+            <Text style={styles.header}>My Tasks</Text>
+            {/* Navigates to the API-powered screen */}
+            <Pressable
+              style={styles.suggestedButton}
+              onPress={() => navigation.navigate('Suggested')}
+            >
+              <Text style={styles.suggestedButtonText}>Suggestions</Text>
+            </Pressable>
+          </View>
+
+          <TaskInput onAddTask={handleAddTask} />
+
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#4A55A2" />
+            </View>
+          ) : (
+            <TaskList tasks={tasks} onDeleteTask={handleDeleteTask} />
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#F5F6FA' },
+  flex: { flex: 1 },
+  container: { flex: 1, padding: 20 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  header: { fontSize: 26, fontWeight: '800', color: '#1B1F3B' },
+  suggestedButton: {
+    backgroundColor: '#EEF0FB',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  suggestedButtonText: { color: '#4A55A2', fontWeight: '600', fontSize: 14 },
+  loadingContainer: { alignItems: 'center', paddingVertical: 48 },
+});
