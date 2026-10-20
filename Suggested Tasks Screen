@@ -1,0 +1,217 @@
+// screens/SuggestedTasksScreen.tsx
+//
+// The API-powered screen. Fetches sample todos from JSONPlaceholder and
+// shows them as "suggested tasks" the user can add to their own list.
+//
+// Requirements covered here:
+//   2. Data retrieval   -> loadTodos() uses fetch via fetchSuggestedTodos()
+//   3. TypeScript       -> useState<ApiTodo[]> holds the typed records
+//   4. User interface   -> each row shows title, status, and user/task ids
+//   5. Application states -> loading, error (with Retry), empty, and
+//                            pull-to-refresh
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
+  StyleSheet,
+  SafeAreaView,
+} from 'react-native';
+import { ApiTodo } from '../types/ApiTodo';
+import { fetchSuggestedTodos } from '../services/todoApi';
+import { addTaskToStorage } from '../utils/taskStorage';
+
+export default function SuggestedTasksScreen() {
+  // The retrieved records, typed with the ApiTodo interface.
+  const [todos, setTodos] = useState<ApiTodo[]>([]);
+
+  // Application states
+  const [isLoading, setIsLoading] = useState(true); // first load / retry
+  const [isRefreshing, setIsRefreshing] = useState(false); // pull-to-refresh
+  const [error, setError] = useState<string | null>(null); // null = no error
+
+  // ids of suggestions the user has already added, so each row can
+  // switch its button to "Added".
+  const [addedIds, setAddedIds] = useState<number[]>([]);
+
+  // Fetches the todos and updates state. Shared by the initial load,
+  // the Retry button, and pull-to-refresh.
+  const loadTodos = async (isPullToRefresh = false) => {
+    if (isPullToRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+
+    try {
+      const data = await fetchSuggestedTodos();
+      setTodos(data);
+    } catch (e) {
+      console.error('Failed to fetch todos:', e);
+      setError("Couldn't load suggestions. Check your connection and try again.");
+    } finally {
+      // Runs after success or failure, so spinners never get stuck.
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // Fetch once when the screen first mounts.
+  useEffect(() => {
+    loadTodos();
+  }, []);
+
+  const handleAdd = async (todo: ApiTodo) => {
+    await addTaskToStorage(todo.title);
+    setAddedIds((prev) => [...prev, todo.id]);
+  };
+
+  // LOADING STATE
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, styles.centered]}>
+        <ActivityIndicator size="large" color="#4A55A2" />
+        <Text style={styles.stateSubtitle}>Loading suggestions…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // ERROR STATE (with Retry button)
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.safeArea, styles.centered]}>
+        <Text style={styles.stateTitle}>Something went wrong</Text>
+        <Text style={styles.stateSubtitle}>{error}</Text>
+        <Pressable style={styles.retryButton} onPress={() => loadTodos()}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </Pressable>
+      </SafeAreaView>
+    );
+  }
+
+  // SUCCESS STATE (with EMPTY STATE as the list's empty component)
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <FlatList
+        data={todos}
+        keyExtractor={(item) => String(item.id)}
+        contentContainerStyle={todos.length === 0 ? styles.emptyContainer : styles.list}
+        // Pull down on the list to re-fetch.
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={() => loadTodos(true)} />
+        }
+        // EMPTY STATE: the API responded successfully but returned no records.
+        ListEmptyComponent={
+          <View style={styles.centered}>
+            <Text style={styles.stateTitle}>No suggestions right now</Text>
+            <Text style={styles.stateSubtitle}>Pull down to refresh or try again.</Text>
+            <Pressable style={styles.retryButton} onPress={() => loadTodos()}>
+              <Text style={styles.retryButtonText}>Refresh</Text>
+            </Pressable>
+          </View>
+        }
+        renderItem={({ item }) => {
+          const isAdded = addedIds.includes(item.id);
+          return (
+            <View style={styles.card}>
+              {/* Field 1: title */}
+              <Text style={styles.title}>{item.title}</Text>
+
+              {/* Field 2: completed status, shown as a badge */}
+              <View style={[styles.badge, item.completed ? styles.badgeDone : styles.badgeOpen]}>
+                <Text
+                  style={[
+                    styles.badgeText,
+                    item.completed ? styles.badgeTextDone : styles.badgeTextOpen,
+                  ]}
+                >
+                  {item.completed ? 'Completed' : 'Open'}
+                </Text>
+              </View>
+
+              {/* Fields 3 and 4: user id and todo id */}
+              <Text style={styles.meta}>
+                User {item.userId} · Todo #{item.id}
+              </Text>
+
+              <Pressable
+                style={[styles.addButton, isAdded && styles.addButtonDone]}
+                onPress={() => handleAdd(item)}
+                disabled={isAdded}
+              >
+                <Text style={[styles.addButtonText, isAdded && styles.addButtonTextDone]}>
+                  {isAdded ? 'Added' : 'Add to my tasks'}
+                </Text>
+              </Pressable>
+            </View>
+          );
+        }}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: '#F5F6FA' },
+  centered: { alignItems: 'center', justifyContent: 'center', padding: 32 },
+  list: { padding: 20 },
+  emptyContainer: { flexGrow: 1, justifyContent: 'center' },
+
+  stateTitle: { fontSize: 18, fontWeight: '700', color: '#1B1F3B', marginTop: 12 },
+  stateSubtitle: {
+    fontSize: 14,
+    color: '#777',
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  retryButton: {
+    backgroundColor: '#4A55A2',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    marginTop: 16,
+  },
+  retryButtonText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  title: { fontSize: 16, fontWeight: '600', color: '#1B1F3B', marginBottom: 8 },
+  badge: {
+    alignSelf: 'flex-start',
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  badgeDone: { backgroundColor: '#E3F4E8' },
+  badgeOpen: { backgroundColor: '#FFF3DA' },
+  badgeText: { fontSize: 12, fontWeight: '600' },
+  badgeTextDone: { color: '#1E7B3A' },
+  badgeTextOpen: { color: '#8A5A00' },
+  meta: { fontSize: 12, color: '#888', marginBottom: 12 },
+
+  addButton: {
+    backgroundColor: '#4A55A2',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  addButtonDone: { backgroundColor: '#EEF0FB' },
+  addButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 14 },
+  addButtonTextDone: { color: '#4A55A2' },
+});
